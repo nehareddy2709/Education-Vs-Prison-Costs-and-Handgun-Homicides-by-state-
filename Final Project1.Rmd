@@ -1,0 +1,618 @@
+---
+title: "Final Project"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+always_allow_html: yes
+date: "2023-05-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(ggplot2)
+hw <- theme_gray()+ theme(
+  plot.title=element_text(hjust=0.5),
+  plot.subtitle=element_text(hjust=0.5),
+  plot.caption=element_text(hjust=-.5),
+
+  strip.text.y = element_blank(),
+  strip.background=element_rect(fill=rgb(.9,.95,1),
+    colour=gray(.5), linewidth =.2),
+
+  panel.border=element_rect(fill=FALSE,colour=gray(.70)),
+  panel.grid.minor.y = element_blank(),
+  panel.grid.minor.x = element_blank(),
+  panel.spacing.x = unit(0.10,"cm"),
+  panel.spacing.y = unit(0.05,"cm"),
+
+# axis.ticks.y= element_blank()
+  axis.ticks=element_blank(),
+  axis.text=element_text(colour="black"),
+  axis.text.y=element_text(margin=margin(0,3,0,3)),
+  axis.text.x=element_text(margin=margin(-1,0,3,0))
+)
+```
+
+```{r}
+Cancer=read.csv("C:\\Users\\nredd\\OneDrive\\Documents\\STAT 515\\Final Project\\cancer_reg.csv")
+```
+
+
+```{r}
+str(Cancer)
+is.na(Cancer)
+#apply(is.na(Cancer), 2, which)
+```
+```{r}
+table(is.na(Cancer))
+names(which(colSums(is.na(Cancer)) >0))
+```
+```{r}
+library(dplyr)
+library(tidyr)
+Cancer %>% mutate_if(is.numeric, ~replace_na(., mean(., na.rm=TRUE)))
+```
+
+```{r}
+# replaced all nA's with mean
+Cancer$pctsomecol18_24[is.na(Cancer$pctsomecol18_24)]<- mean(Cancer$pctsomecol18_24, na.rm=TRUE)
+
+Cancer$pctemployed16_over[is.na(Cancer$pctemployed16_over)]<- mean(Cancer$pctemployed16_over, na.rm=TRUE)
+
+Cancer$pctprivatecoveragealone[is.na(Cancer$pctprivatecoveragealone)]<- mean(Cancer$pctprivatecoveragealone, na.rm=TRUE)
+```
+
+```{r}
+library(stringr)
+library(tidyverse)
+Cancer[c("county", "state")] <- str_split_fixed(Cancer$geography,',', 2)
+```
+
+```{r}
+summary(Cancer)
+```
+This tells us the average percentage, death and diagnosis rates of Cancer and how doeas the socioeconomic status affects or changes united states when Health of a person affects  
+```{r}
+library(dplyr)
+install.packages("forcats")
+library(forcats)
+
+count(Cancer, 'incidencerate')
+
+barplot(sort(table(Cancer$state), decreasing=T))
+
+barplot(sort(table(Cancer$povertypercent),increasing =T))
+
+plot(incidencerate ~pctmarriedhouseholds, data=Cancer)
+
+
+Cancer %>%
+  mutate(name = fct_reorder(state, incidencerate)) %>%
+  ggplot( aes(x=state, y=incidencerate)) +
+    geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+    coord_flip() +
+    xlab("") +
+    theme_bw()
+
+Cancer %>%
+  mutate(name = fct_reorder(state, medincome*100/sum(medincome))) %>%
+  ggplot( aes(x=state, y=medincome)) +
+    geom_bar(stat="identity", fill="#f6cb60", alpha=.6, width=.4) +
+    coord_flip() +
+    xlab("") +
+    theme_bw()
+
+Cancer %>%
+  mutate(name = fct_reorder(state, pctemployed16_over)) %>%
+  ggplot( aes(x=state, y= pctemployed16_over)) +
+    geom_bar(stat="identity", fill="#60f6cb", alpha=.6, width=.4) +
+    coord_flip() +
+    xlab("") +
+    theme_bw()
+
+Cancer %>%
+  mutate(name = fct_reorder(state, birthrate)) %>%
+  ggplot( aes(x=state, y=birthrate)) +
+    geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+    coord_flip() +
+    xlab("") +
+    theme_bw()
+
+```
+```{r}
+
+Cancer <- Cancer[-c(9,13)]
+
+#Cancer$direction[Cancer$state %in% 
+          #c("Connecticut", "Maine", "Massachusetts", "New Hampshire", "Rhode Island", "Vermont", "New Jersey", "New York", "Pennsylvania")] <- "East Coast"
+#Cancer$direction[Cancer$state %in% 
+          #c("Illinois", "Indiana", "Michigan", "Ohio", "Wisconsin", "Iowa", "Kansas", "Minnesota", "Missouri", "Nebraska", "North Dakota", "South Dakota")] <- "Midwest"
+```
+
+```{r}
+ggplot(Cancer, aes(x= 1000*popest2015/sum(popest2015),fill=povertypercent))+geom_density()+labs(x="population percentage", y= "poverty percentage", title=" population percentage in 2015")
+
+ggplot(Cancer, aes(x= medincome,fill=pctemployed16_over))+geom_density()+labs(x="Average income of a household", y= "percent of employed households", title=" Employment Vs income")
+
+
+ggplot(Cancer, aes(x= medincome,y=pctemployed16_over))+geom_point()+labs(x="Average income of a household", y= "percent of employed households", title=" Employment Vs income")
+
+Cancer%>%
+  filter( medincome< 60000) %>%
+  ggplot( aes(x=medincome)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8)
+```
+
+```{r}
+library(MASS)
+library(ggplot2)
+library(gridExtra)
+library(viridis)
+#install.packages("hrbrthemes")
+library(hrbrthemes)
+library(tidyr)
+ggplot(data=Cancer, aes(x=medincome, group=state, fill=state)) +
+    geom_density(adjust=1.5) +
+    theme_ipsum() +
+    facet_wrap(~state) +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      axis.ticks.x=element_blank()
+    )+labs(x="Median income of the residents", title="Density plot while considering for each state's income")
+warnings()
+```
+
+
+```{r}
+ggplot(Cancer, aes(x= avgdeathsperyear , y= birthrate))+geom_point()+geom_smooth(method= "loess")+labs(x= "Mean number of reported mortalities due to Cancer in 2015", y= "Number of live births in County", title=" reported deaths Vs birthrate")
+```
+
+
+
+```{r}
+ggplot(Cancer,aes(x=povertypercent)) +
+  geom_histogram(binwidth=2,
+                 fill="cornsilk",color="black")+
+  labs(x="Povertypercentage per100,000 in county",
+       y="Relative Frequencies",
+       title="povertyaffects")+hw
+```
+```{r}
+plot1<-ggplot(Cancer, aes(x= state, y= after_stat(Cancer$povertypercent)))+geom_col(fill= Cancer$popest2015)
+
+plot1+coord_flip()
+```
+
+```{r}
+ggplot(Cancer, aes(x= medianagemale , fill=pctprivatecoverage))+ geom_bar()+labs(x="Male's Age", y= "privatehealthcoveragepercent")+hw
+
+ggplot(Cancer, aes(x= medianagemale , fill=pctprivatecoveragealone))+ geom_bar()+labs(x="Male's Age", y= "privatehealthcoveragepercent")+hw
+
+
+scatt <- ggplot(Cancer , aes(x= medianagemale, y= incidencerate))
+
+scatt+geom_point(aes(color = state))+hw
+```
+```{r}
+ggplot(Cancer , aes(x=pctwhite , y= incidencerate))+geom_point(aes(color= state))+facet_wrap(~state)+hw
+
+ggplot(Cancer , aes(x= pctblack, y= incidencerate))+geom_point(aes(color= state))+facet_wrap(~state)+hw
+
+ggplot(Cancer , aes(x= pctasian, y= incidencerate))+geom_point(aes(color= state))+facet_wrap(~state)+hw
+
+ggplot(Cancer , aes(x= pctotherrace, y= incidencerate))+geom_point(aes(color= state))+facet_wrap(~state)+hw
+```
+
+```{r}
+scatt+geom_point(aes(color = state))+facet_wrap(~state)+hw
+```
+```{r}
+scatt1 <- ggplot(Cancer , aes(x= medianagemale, y= pctpubliccoverage))
+
+scatt1+geom_point(aes(color = state))+facet_wrap(~state)+hw
+```
+```{r}
+scatt2 <- ggplot(Cancer , aes(x= medianagemale, y= pctempprivcoverage))
+
+scatt2+geom_point(aes(color = state))+facet_wrap(~state)+hw
+```
+```{r}
+scatt2 <- ggplot(Cancer , aes(x= medianagemale, y= pctpubliccoveragealone))
+
+scatt2+geom_point(aes(color = state))+facet_wrap(~state)+hw
+```
+```{r}
+scatt3 <- ggplot(Cancer , aes(x= medianagemale, y= pctprivatecoveragealone))
+
+scatt3+geom_point(aes(color = state))+facet_wrap(~state)+hw
+```
+```{r}
+ggplot(Cancer, aes(x= 100*(Cancer$popest2015/sum(Cancer$popest2015)), y= incidencerate))+geom_point()+geom_smooth(method= "loess")+hw+labs(x= "population of county per 100,000", y= "Cancer diagnoses per 100,000", title=" incidenceratevs pop2015" )
+```
+```{r}
+scatt4 <- ggplot(Cancer , aes(x= percentmarried, y= pctpubliccoveragealone))
+
+scatt4+geom_point(aes(color = state))+facet_wrap(~state)+hw
+```
+
+```{r}
+p <- ggplot(Cancer, aes(Cancer$pctpubliccoveragealone, Cancer$pctbachdeg18_24))
+p + geom_point(size = 4,colour="#8a2408") +
+    scale_color_viridis(discrete = TRUE) + geom_smooth(method= "loess")
+    theme_bw()
+    
+p <- ggplot(Cancer, aes(Cancer$pctprivatecoveragealone, Cancer$pctbachdeg18_24))
+p + geom_point(size = 4,colour="#8a2408") +
+    scale_color_viridis(discrete = TRUE) + geom_smooth(method= "loess")
+    theme_bw()
+    
+    
+p <- ggplot(Cancer, aes(Cancer$pctempprivcoverage, Cancer$pctemployed16_over))
+p + geom_point(size = 4,colour="#8a2408") +
+    scale_color_viridis(discrete = TRUE) + geom_smooth(method= "loess")
+    theme_bw()
+    
+    
+p <- ggplot(Cancer, aes(Cancer$pctempprivcoverage, Cancer$pctunemployed16_over))
+p + geom_point(size = 4,colour="#8a2408") +
+    scale_color_viridis(discrete = TRUE) + geom_smooth(method= "loess")
+    theme_bw()
+```
+
+#Simple Linear Regression
+
+```{r}
+plot(Cancer$incidencerate~Cancer$target_deathrate)
+```
+```{r}
+mydata<-cor(Cancer[, unlist(lapply(Cancer, is.numeric))])
+mydata
+```
+
+
+```{r}
+library(corrplot)
+
+corrplot(mydata, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+```
+
+# simple linear regression for research question one.
+```{r}
+fit = lm(target_deathrate ~ ., data=Cancer)
+reg.summary=summary(fit)
+reg.summary
+```
+
+```{r}
+fit1<- lm(target_deathrate ~ pctmarriedhouseholds+incidencerate+avganncount, data=Cancer)
+summary(fit1)
+```
+```{r}
+fit2 <-lm(target_deathrate ~ avgdeathsperyear+ pctmarriedhouseholds+incidencerate+incidencerate*avganncount, data = Cancer)
+
+summary(fit2)
+```
+```{r}
+fit3 <-lm(target_deathrate ~ avgdeathsperyear+pctmarriedhouseholds+ pctbachdeg18_24+pctbachdeg25_over+pctprivatecoveragealone+pctbachdeg18_24*pctbachdeg25_over, data=Cancer)
+
+summary(fit3)
+```
+```{r}
+anova(fit1, fit2)
+```
+```{r}
+fit4 <- lm(target_deathrate ~poly(pctbachdeg25_over, 5), data= Cancer)
+summary(fit4)
+```
+```{r}
+anova(fit3, fit4)
+```
+```{r}
+plot(fit3)
+```
+#variable selection, cross- validation
+
+```{r}
+library(caret)
+```
+```{r}
+library(ISLR)
+library(leaps)
+
+regfit.bwd= regsubsets(target_deathrate ~., data= Cancer[1:15], nvmax=15)
+reg.summary=summary(regfit.bwd)
+reg.summary
+```
+
+```{r}
+reg.summary$rsq
+which.min(reg.summary$bic)
+which.max(reg.summary$rsq)
+
+which.min(reg.summary$rss)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$cp)
+```
+
+
+#k- fold cross validation
+```{r}
+k=15
+
+set.seed(1)
+Cancer1<-Cancer[-c(32,33)]
+folds = sample(1:k, nrow(Cancer1), replace= TRUE)
+```
+```{r}
+(cv.errors=matrix(NA,k,15, dimnames=list(NULL, paste(1:15))))
+```
+
+```{r}
+#for(j in 1:k){
+ #best.fit=regsubsets(target_deathrate~., data=Cancer1[folds!=j,], nvmax=15)
+  
+ #for(i in 1:15){
+  # pred = predict(best.fit, Cancer1[folds==j,], id=i)
+     #cv.errors[j,i] = mean( (Cancer1$target_deathrate[folds==j]-pred)^2)
+  #}
+#}
+```
+
+```{r}
+#mean.cv.errors=apply(cv.errors, 2, mean)
+#which.min(mean.cv.errors)
+
+#plot(mean.cv.errors ,type="b")
+
+#reg.best=regsubsets(target_deathrate~.,data=Cancer1 , nvmax=19)
+#coef(reg.best ,10)
+```
+
+```{r}
+train_control = trainControl(method= "CV", number=5)
+
+model1= train(target_deathrate ~ incidencerate+pcths18_24+pctsomecol18_24+pctbachdeg25_over+pctprivatecoverage+pctempprivcoverage+pctblack+pctotherrace+pctmarriedhouseholds+povertypercent+pctunemployed16_over+ pctemployed16_over+pctblack+pctwhite+pctbachdeg25_over, data= Cancer1 , method="lm",trcontrol= train_control)
+
+print(model1)
+```
+```{r}
+model1$resample
+```
+
+#Lasso regression
+```{r}
+library(MASS)
+library(tidyverse)
+
+training.samples <- Cancer1$target_deathrate %>% createDataPartition(p =0.8, list=FALSE)
+train.data <- Cancer1[training.samples,]
+test.data<- Cancer1[-training.samples,]
+```
+
+
+```{r}
+#predictor variables
+x <- model.matrix(target_deathrate ~., train.data[,-1])
+
+#outcome variable
+y<- train.data$target_deathrate
+```
+
+```{r}
+library(caret)
+#install.packages("glmnet", repos=NULL, type="source")
+library(glmnet)
+glmnet(x, y, alpha = 1, lambda = NULL)
+```
+```{r}
+set.seed(123)
+cv <- cv.glmnet(x,y, alpha =1)
+
+cv$lambda.min
+```
+```{r}
+# Fit the final model on the training data
+model11 <- glmnet(x, y, alpha = 1, lambda = cv$lambda.min) 
+# Dsiplay regression coefficients
+coef(model11)
+```
+
+```{r}
+cv_glmnet <- caret::train(x = as.data.frame(x), y = y,
+                       method = "glmnet",
+                       preProcess = NULL,
+                       trControl = trainControl(method = "cv", number = 10),
+                       tuneLength = 10)
+
+yhat <- predict.train(cv_glmnet, newdata = x) 
+
+
+x.test <- model.matrix(target_deathrate~., test.data)[,-1]
+
+library(tibble)
+predictions <-predict(model11, newx=x.test) %>% as.vector() # Model performance metrics
+data.frame(
+  RMSE = RMSE(predictions, test.data$target_deathrate),
+  Rsquare = R2(predictions, test.data$target_deathrate)
+)
+```
+
+```{r}
+library(psych)
+pairs.panels(Cancer1[1:20])
+apply(Cancer1, 2, mean)
+```
+```{r}
+apply(Cancer1, 2, var)
+```
+```{r}
+pr.out=prcomp(Cancer1, scale=TRUE)
+names(pr.out)
+```
+```{r}
+pr.out$center
+```
+```{r}
+pr.out$rotation
+```
+```{r}
+pr.out$sdev
+```
+
+
+```{r}
+dim(pr.out$x)
+```
+```{r}
+head(pr.out$x,n = 10)
+
+```
+```{r}
+pr.out$rotation=-pr.out$rotation
+pr.out$x=-pr.out$x
+biplot(pr.out, scale=0)
+```
+```{r}
+summary(pr.out)
+```
+```{r}
+plot(pr.out$x[,1:2], col = Cancer$avgdeathsperyear)
+```
+```{r}
+plot(pr.out)
+biplot(pr.out)
+```
+
+```{r}
+std_dev <- pr.out$sdev
+
+#compute proportion of variance
+pr_var <- std_dev^2
+pve <- pr_var/sum(pr_var)
+```
+
+```{r}
+library(gridExtra)
+x = 1:length(pve)
+g1 =qplot(x,pve, xlab="Principal Component",
+      ylab="Proportion of Variance Explained") +
+  geom_line()+geom_point(shape=21,fill="red",cex=3)
+
+g2 =qplot(x,cumsum(pve), xlab="Principal Component",
+      ylab="Cumulative Proportion of Variance Explained",
+      main="  ",ylim=c(0,1))+
+  geom_line()+geom_point(shape=21,fill="red",cex=3)
+
+grid.arrange(g1,g2, nrow=1)
+```
+```{r}
+round(pr.out$rotation,2)
+```
+```{r}
+heptVar = pr.out$sdev**2
+100*cumsum(heptVar)/sum(heptVar)
+```
+```{r}
+plot(Cancer1$target_deathrate,-pr.out$x[,1],las=1,pch=21,bg="red",
+     xlab="Death rate",ylab="First Principal Component",
+     main="Comparing Cancer Death rate and First Principal Component")
+correl = cor(-pr.out$x[,1],Cancer1$medincome)
+xloc = mean(par()$usr[1:2])
+text(xloc,4,paste("Correlation =",round(correl,2)),adj=.5,cex=1.1)
+```
+```{r}
+data = data.frame(Cancer$medincome,pr.out$x[,1])
+
+fit = lm(data$Cancer.medincome~data$pr.out.x...1., data= data)
+summary(fit)
+
+
+```
+```{r}
+data1= data.frame(Cancer$target_deathrate,pr.out$x[,1])
+
+fit1=lm(data1$Cancer.target_deathrate~data1$pr.out.x...1., data=data1)
+summary(fit1)
+```
+#Decision tree for research question 2
+```{r}
+library(MASS)
+library(tree)
+```
+
+```{r}
+set.seed(1)
+train = sample(1:nrow(Cancer), nrow(Cancer)/2)
+
+tree.Cancer= tree(target_deathrate ~., Cancer, subset= train)
+summary(tree.Cancer)
+```
+```{r}
+plot(tree.Cancer)
+text(tree.Cancer, pretty=0)
+```
+```{r}
+library(sparkline)
+library(visNetwork)
+library(rpart)# to make this viz, you need to use the package "rpart"
+tree.Cancer1=rpart(target_deathrate~., Cancer,subset=train)
+visTree(tree.Cancer1)
+```
+
+```{r}
+cv.Cancer=cv.tree(tree.Cancer)
+plot(cv.Cancer$size,cv.Cancer$dev,type='b')
+```
+```{r}
+prune.Cancer=prune.tree(tree.Cancer,best=5)
+plot(prune.Cancer)
+text(prune.Cancer,pretty=0)
+```
+#Performing Pearson Correlation for research question 3.
+```{r}
+set.seed(150)
+cor(Cancer$medianagemale, Cancer$pctpubliccoveragealone, method="pearson")
+cor(Cancer$medianagefemale,Cancer$pctpubliccoveragealone,method="pearson")
+a<-cor(Cancer$pctemployed16_over, Cancer$pctempprivcoverage,method="pearson")
+```
+
+
+```{r}
+#install.packages("correlation")
+library(correlation)
+
+correlation::correlation(Cancer1,
+  include_factors = TRUE, method = "auto"
+)
+```
+
+```{r}
+#install.packages("GGally")
+library(GGally)
+
+ggpairs(Cancer1[, c("medianagemale", "medianagefemale", "pctpubliccoveragealone","pctemployed16_over","pctempprivcoverage")])
+```
+
+```{r}
+gg <- ggplot(Cancer1, aes(pctemployed16_over, pctempprivcoverage))
+gg <- gg + geom_point()
+gg <- gg + geom_smooth(alpha=0.3, method="lm")
+print(gg)
+```
+
+```{r}
+
+```
+
